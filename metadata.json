@@ -1,0 +1,6 @@
+{
+  "name": "Green Terminal Portfolio",
+  "description": "High-performance developer portal and live system terminal styled in hard-edge neobrutalism featuring a #32ff84 neon-green theme.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
