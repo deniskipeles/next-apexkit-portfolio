@@ -1,13 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExternalLink, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PROJECTS } from '@/lib/data';
+import { PROJECTS, Project } from '@/lib/data';
+import { getProjects } from '@/lib/apex';
 
 export default function ProjectsPage() {
   const [projectFilter, setProjectFilter] = useState<'all' | 'web3' | 'systems' | 'frontend' | 'tooling'>('all');
+  const [projectsList, setProjectsList] = useState<Project[]>(PROJECTS);
+
+  useEffect(() => {
+    getProjects().then(data => {
+      setProjectsList(data);
+    });
+  }, []);
 
   return (
     <section className="mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -38,7 +46,7 @@ export default function ProjectsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
-          {PROJECTS
+          {projectsList
             .filter(p => projectFilter === 'all' || p.category === projectFilter)
             .map((project) => (
               <motion.div

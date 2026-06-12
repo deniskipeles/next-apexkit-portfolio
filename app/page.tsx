@@ -1,9 +1,10 @@
 'use client';
 
-import { ArrowRight, Code2, ShieldAlert, Cpu, Terminal, FileCode, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ArrowRight, Code2, ShieldAlert, Cpu } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { HOME_HERO, HomeHeroData } from '@/lib/data';
+import { getHomeHero } from '@/lib/apex';
 
 interface MetricFeed {
   module: string;
@@ -13,6 +14,7 @@ interface MetricFeed {
 }
 
 export default function Home() {
+  const [heroData, setHeroData] = useState<HomeHeroData>(HOME_HERO);
   const [tickerSignals, setTickerSignals] = useState<Record<string, MetricFeed>>({
     'APEXKIT-RUST': { module: 'BaaS Realtime', load: 18.2, status: 'optimal', latency: '3ms' },
     'SWALANG-ZIG': { module: 'V2 Compiler', load: 8.4, status: 'optimal', latency: '1ms' },
@@ -20,6 +22,26 @@ export default function Home() {
     'APEXKIT-JS-SDK': { module: 'TS Query Engine', load: 11.2, status: 'optimal', latency: '2ms' }
   });
 
+  // Fetch dynamic home data from ApexKit
+  useEffect(() => {
+    getHomeHero().then(data => {
+      setHeroData(data);
+      if (data.ticker && data.ticker.length > 0) {
+        const initialSignals: Record<string, MetricFeed> = {};
+        data.ticker.forEach(t => {
+          initialSignals[t.key] = {
+            module: t.module,
+            load: t.load,
+            latency: t.latency,
+            status: t.status
+          };
+        });
+        setTickerSignals(initialSignals);
+      }
+    });
+  }, []);
+
+  // Telemetry real-time drift simulator
   useEffect(() => {
     const inter = setInterval(() => {
       setTickerSignals(prev => {
@@ -30,7 +52,7 @@ export default function Home() {
           next[k].load = Math.max(1, Math.min(100, Math.round((next[k].load + drift) * 10) / 10));
           
           // Adjust latency
-          const baseLat = parseInt(next[k].latency);
+          const baseLat = parseFloat(next[k].latency) || 5;
           const nextLat = Math.max(1, Math.round(baseLat + (Math.random() - 0.5) * 3));
           next[k].latency = `${nextLat}ms`;
         });
@@ -74,12 +96,11 @@ export default function Home() {
           </div>
           
           <h2 className="text-4xl sm:text-6xl font-display font-black tracking-tight leading-none uppercase mb-6">
-            I BUILD CUSTOM INTERPRETERS & SOUPED-UP BACKEND ENGINE FABRICS.
+            {heroData.title}
           </h2>
           
           <p className="text-base sm:text-lg font-medium border-l-[4px] border-black pl-4 text-neutral-700 max-w-3xl mb-8 leading-relaxed">
-            Creator of <span className="font-mono bg-[#32ff84]/15 px-1 py-0.5 text-black font-semibold rounded">swalang</span> and <span className="font-mono bg-[#32ff84]/15 px-1 py-0.5 text-black font-semibold rounded">apexkit</span>. 
-            Specialist in compiling high-speed interpreters (Zig/Go), managing complex multi-tenant BaaS contexts behind the scenes, and organizing modular JavaScript SDK pipelines.
+            {heroData.subheading}
           </p>
           
           <div className="flex flex-wrap gap-4">
