@@ -218,7 +218,7 @@ export default function TerminalPage() {
   };
 
   return (
-    <section className="mb-12 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <section className="mb-12 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 md:px-0">
       
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -237,16 +237,16 @@ export default function TerminalPage() {
       <div className="border-[3px] border-black bg-white shadow-[8px_8px_0px_0px_#000000] rounded overflow-hidden flex flex-col h-[70vh] min-h-[500px]">
         
         <div className="border-b-[3px] border-black bg-neutral-100 p-3 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <TerminalIcon className="w-4 h-4 text-black" />
-            <span className="font-mono text-xs font-black uppercase tracking-wider text-black">
+          <div className="flex items-center gap-2 min-w-0">
+            <TerminalIcon className="w-4 h-4 text-black shrink-0" />
+            <span className="font-mono text-[10px] sm:text-xs font-black uppercase tracking-wider text-black truncate">
               apexkit@cognitive-copilot:~
             </span>
           </div>
 
           <button 
             onClick={() => setChatLog([])}
-            className="p-1 px-3 bg-white hover:bg-neutral-200 border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-none font-mono text-[10px] font-bold flex items-center gap-1.5 transition-all"
+            className="p-1 px-3 bg-white hover:bg-neutral-200 border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-none font-mono text-[10px] font-bold flex items-center gap-1.5 transition-all shrink-0"
             title="Prune output lines"
           >
             <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Clear Screen
@@ -268,14 +268,17 @@ export default function TerminalPage() {
                   <div 
                     key={idx} 
                     className={cn(
-                      "leading-relaxed select-text flex items-start gap-2",
+                      "leading-relaxed select-text flex flex-col items-start gap-1 sm:flex-row sm:items-start sm:gap-2",
                       isUser ? 'text-white font-extrabold border-l-2 border-white pl-3' : 
                       isSys ? 'text-sky-300 font-bold opacity-90' : 
                       isErr ? 'text-red-400 font-bold' : 'text-brand'
                     )}
                   >
-                    <span className="text-[10px] opacity-40 select-none shrink-0 mt-0.5">[{line.timestamp}]</span>
-                    <div className="flex-1 min-w-0 overflow-x-auto">
+                    {/* Timestamp: Rendered on its own line/row on mobile */}
+                    <span className="text-[10px] opacity-40 select-none shrink-0 sm:mt-0.5">[{line.timestamp}]</span>
+                    
+                    {/* Message Content: Renders on its own row on mobile */}
+                    <div className="w-full sm:flex-1 min-w-0 overflow-x-auto">
                       {isUser && <span className="text-[#32ff84] select-none mr-1.5">visitor@copilot:~$</span>}
                       {line.role === 'copilot' ? (
                         <TerminalMarkdown text={line.text} />
@@ -302,7 +305,10 @@ export default function TerminalPage() {
             onSubmit={handleCommandSubmit} 
             className="flex items-center gap-2 border-t border-neutral-900 pt-3.5 mt-3.5 shrink-0"
           >
-            <span className="text-white font-black select-none">visitor@copilot:~$</span>
+            {/* Shortened target for smaller screens to save input layout space */}
+            <span className="text-white font-black select-none hidden sm:inline">visitor@copilot:~$</span>
+            <span className="text-white font-black select-none inline sm:hidden">~$</span>
+            
             <input
               type="text"
               value={commandInput}
