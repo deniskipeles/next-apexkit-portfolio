@@ -3,11 +3,35 @@ import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
-export const metadata: Metadata = {
-  title: 'Denis Kipeles | Full-Stack Systems & Frontend Architect',
-  description: 'Neobrutalist developer portfolio and high-frequency real-time terminal built with Next.js, Framer Motion, and Tailwind CSS.',
-};
+// Define the dynamic metadata generator
+export async function generateMetadata(): Promise<Metadata> {
+  // 1. Define or fetch your dynamic URL (can come from an env variable, API, etc.)
+  const faviconUrl = process.env.NEXT_PUBLIC_FAVICON_URL || '/favicon.png'; 
+  
+  // 2. Automatically determine the MIME type based on the file extension
+  const extension = faviconUrl.split('.').pop();
+  let mimeType = 'image/x-icon';
+  
+  if (extension === 'svg') {
+    mimeType = 'image/svg+xml';
+  } else if (extension === 'png') {
+    mimeType = 'image/png';
+  }
 
+  return {
+    title: 'Denis Kipeles | Full-Stack Systems & Frontend Architect',
+    description: 'Neobrutalist developer portfolio and high-frequency real-time terminal built with Next.js, Framer Motion, and Tailwind CSS.',
+    icons: [
+      {
+        rel: 'icon',
+        type: mimeType,
+        url: faviconUrl,
+      },
+    ],
+  };
+}
+
+// Keep your RootLayout component the same
 export default function RootLayout({
   children,
 }: {

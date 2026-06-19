@@ -64,6 +64,15 @@ export default function Header() {
           PROJECTS
         </Link>
         <Link 
+          href="/docs" 
+          className={cn(
+            "px-2.5 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000000] transition-all",
+            pathname === '/docs' ? "bg-[#32ff84] text-black" : "bg-white text-black hover:bg-neutral-50"
+          )}
+        >
+          DOCS
+        </Link>
+        <Link 
           href="/contact" 
           className={cn(
             "px-2.5 py-1.5 border-2 border-black shadow-[2px_2px_0px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000000] transition-all",

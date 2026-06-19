@@ -1,12 +1,12 @@
 import { ApexKit } from '@apexkit/sdk';
-import { 
-  Project, PROJECTS, 
-  SkillCategory, SKILLS, 
-  AboutData, ABOUT, 
-  HomeHeroData, HOME_HERO 
+import {
+  Project, PROJECTS,
+  SkillCategory, SKILLS,
+  AboutData, ABOUT,
+  HomeHeroData, HOME_HERO
 } from './data';
 
-const BACKEND_URL = 'https://kipeles-vs--5000.hf.space';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kipeles-vs--5000.hf.space';
 const TENANT_ID = 'portfolio';
 
 // Initialize the SDK lazy-loaded
@@ -45,7 +45,7 @@ async function fetchCollectionWithFallback<T>(
     );
 
     const result = await Promise.race([fetchPromise, timeoutPromise]);
-    
+
     if (result && result.items && Array.isArray(result.items) && result.items.length > 0) {
       return result.items.map(mapper);
     }
@@ -133,11 +133,11 @@ export async function getAbout(): Promise<AboutData> {
     );
 
     const result = await Promise.race([fetchPromise, timeoutPromise]);
-    
+
     if (result && result.items && Array.isArray(result.items) && result.items.length > 0) {
       const item = result.items[0];
       const data = item.data || item;
-      
+
       let parsedHighlights = ABOUT.highlights;
       if (typeof data.highlights === 'string') {
         try {
@@ -178,7 +178,7 @@ export async function getHomeHero(): Promise<HomeHeroData> {
     // 1. Fetch home hero configurations from 'home_hero' collection if available
     const heroPromise = client.collection('home_hero').list({ per_page: 1 });
     const tickerPromise = client.collection('home_ticker').list({ per_page: 15 });
-    
+
     const timeoutPromise = new Promise<null>((_, reject) =>
       setTimeout(() => reject(new Error('Timeout')), 4000)
     );

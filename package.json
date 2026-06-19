@@ -9,13 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@apexkit/sdk": "^1.0.3",
+    "@apexkit/sdk": "^1.0.4",
     "clsx": "^2.1.1",
     "framer-motion": "^11.13.1",
     "lucide-react": "^0.468.0",
-    "next": "15.1.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "tailwind-merge": "^2.5.5"
   },
   "devDependencies": {
