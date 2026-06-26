@@ -632,6 +632,62 @@
         },
         "relations": {}
       }
+    },
+    {
+      "id": 7,
+      "index": "d4f688a3-e7f8-9012-3456-7890abcdef34",
+      "name": "articles",
+      "schema": {
+        "composite_unique": [],
+        "field_history": {},
+        "fields": {
+          "title": {
+            "auto": false,
+            "type": "string",
+            "required": true,
+            "sql_indexed": true,
+            "uid": "a1111111"
+          },
+          "slug": {
+            "auto": false,
+            "type": "string",
+            "required": true,
+            "uid": "a2222222",
+            "unique": true
+          },
+          "summary": {
+            "auto": false,
+            "type": "string",
+            "required": true,
+            "uid": "a3333333"
+          },
+          "content": {
+            "auto": false,
+            "type": "text",
+            "required": true,
+            "uid": "a4444444"
+          },
+          "readTime": {
+            "auto": false,
+            "type": "string",
+            "required": false,
+            "uid": "a5555555"
+          },
+          "tags": {
+            "auto": false,
+            "type": "json",
+            "required": false,
+            "uid": "a6666666"
+          }
+        },
+        "policies": {
+          "create": "admin",
+          "delete": "admin",
+          "read": "public",
+          "update": "admin"
+        },
+        "relations": {}
+      }
     }
   ],
   "exported_at": "2026-06-12T11:36:32.480664220+00:00",

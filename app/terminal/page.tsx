@@ -20,80 +20,98 @@ const escapeHtml = (unsafe: string) => {
 function formatTerminalLine(str: string) {
   let safeStr = escapeHtml(str);
   return safeStr
-    .replace(/\*\*(.*?)\*\*/g, '<span class="text-white font-black">$1</span>') // Bold -> White
-    .replace(/\*(.*?)\*/g, '<span class="text-neutral-400 italic">$1</span>') // Italic -> Dimmed
-    .replace(/`([^`]+)`/g, '<span class="text-fuchsia-400 bg-fuchsia-400/10 px-1 py-0.5 rounded">$1</span>') // Code -> Pink
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300">$1</a>'); // Links -> Blue
+    .replace(/\*\*(.*?)\*\*/g, '<span class="text-white font-black">$1</span>')
+    .replace(/\*(.*?)\*/g, '<span class="text-neutral-400 italic">$1</span>')
+    .replace(/`([^`]+)`/g, '<span class="text-fuchsia-300 bg-fuchsia-400/10 border border-fuchsia-400/30 px-1.5 py-0.5 rounded">$1</span>')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 underline-offset-2">↗ $1</a>');
 }
 
 const TerminalMarkdown = ({ text }: { text: string }) => {
   const lines = text.split('\n');
   let inCodeBlock = false;
+  let codeLang = '';
 
   return (
     <div className="flex flex-col w-full text-brand">
       {lines.map((line, i) => {
-        // Toggle Code Block State
-        if (line.trim().startsWith('```')) {
-          inCodeBlock = !inCodeBlock;
-          return <div key={i} className="text-neutral-600 select-none">{line}</div>;
+        const fenceMatch = line.trim().match(/^```(\w*)/);
+        if (fenceMatch) {
+          if (!inCodeBlock) {
+            codeLang = fenceMatch[1] || 'text';
+            inCodeBlock = true;
+            return (
+              <div key={i} className="mt-2 flex items-center justify-between bg-neutral-900 border border-neutral-700 border-b-0 rounded-t px-3 py-1">
+                <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">{codeLang}</span>
+                <span className="text-neutral-600 select-none text-[10px]">●●●</span>
+              </div>
+            );
+          }
+          inCodeBlock = false;
+          return <div key={i} className="bg-neutral-900/60 border border-neutral-700 border-t-0 rounded-b h-2 mb-2" />;
         }
 
-        // Inside Code Block: Render raw text as Amber
         if (inCodeBlock) {
-          return <div key={i} className="text-amber-300 whitespace-pre">{escapeHtml(line)}</div>;
+          return (
+            <div key={i} className="bg-neutral-900/60 border-x border-neutral-700 px-3 text-amber-300 whitespace-pre overflow-x-auto">
+              {escapeHtml(line) || '\u00A0'}
+            </div>
+          );
         }
 
-        // Headings (e.g. ## Topic) -> Sky Blue, Uppercase
         const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
         if (headingMatch) {
           const hashes = headingMatch[1];
           const content = headingMatch[2];
           return (
-            <div key={i} className="text-sky-300 font-bold mt-4 mb-1 uppercase tracking-wider">
+            <div key={i} className="text-sky-300 font-bold mt-4 mb-1 uppercase tracking-wider border-b border-sky-300/20 pb-1">
               <span className="opacity-50 mr-2">{hashes}</span>
               <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(content) }} />
             </div>
           );
         }
 
-        // Numbered Lists (e.g. 1. Item) -> Number is Sky Blue
-        const numListMatch = line.match(/^(\s*\d+\.)\s+(.*)/);
-        if (numListMatch) {
-          const bullet = numListMatch[1];
-          const content = numListMatch[2];
+        const quoteMatch = line.match(/^\s*>\s?(.*)/);
+        if (quoteMatch) {
           return (
-            <div key={i} className="flex mt-1">
+            <div key={i} className="border-l-2 border-neutral-600 pl-3 text-neutral-400 italic mt-1">
+              <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(quoteMatch[1]) }} />
+            </div>
+          );
+        }
+
+        const numListMatch = line.match(/^(\s*)(\d+\.)\s+(.*)/);
+        if (numListMatch) {
+          const indent = numListMatch[1].length;
+          const bullet = numListMatch[2];
+          const content = numListMatch[3];
+          return (
+            <div key={i} className="flex mt-1" style={{ marginLeft: indent * 8 }}>
               <span className="text-sky-300 font-bold mr-2 whitespace-pre shrink-0">{bullet}</span>
               <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(content) }} />
             </div>
           );
         }
 
-        // Bullet Lists (e.g. - Item) -> Bullet is Green
-        const listMatch = line.match(/^(\s*[-*])\s+(.*)/);
+        const listMatch = line.match(/^(\s*)([-*])\s+(.*)/);
         if (listMatch) {
-          const bullet = listMatch[1];
-          const content = listMatch[2];
+          const indent = listMatch[1].length;
+          const content = listMatch[3];
           return (
-            <div key={i} className="flex mt-1">
-              <span className="text-[#32ff84] font-bold mr-2 whitespace-pre shrink-0">{bullet}</span>
+            <div key={i} className="flex mt-1" style={{ marginLeft: indent * 8 }}>
+              <span className="text-[#32ff84] font-bold mr-2 shrink-0">{indent > 0 ? '◦' : '▸'}</span>
               <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(content) }} />
             </div>
           );
         }
 
-        // Horizontal Rules (e.g. ---)
         if (line.trim().match(/^[-*_]{3,}$/)) {
-          return <div key={i} className="text-neutral-600 tracking-widest my-2">{line}</div>;
+          return <div key={i} className="border-t border-neutral-700 my-3" />;
         }
 
-        // Empty lines act as spacers
         if (line.trim() === '') {
           return <div key={i} className="h-4"></div>;
         }
 
-        // Regular Text
         return (
           <div key={i} dangerouslySetInnerHTML={{ __html: formatTerminalLine(line) }} className="mt-1" />
         );
@@ -167,36 +185,10 @@ export default function TerminalPage() {
       const client = getApexClient();
       if (!client) throw new Error('ApexKit client failed to initialize.');
 
-      const searchResults = await client.collection('articles').searchTextVector(promptText, 2);
-      
-      let contextString = '';
-      if (Array.isArray(searchResults) && searchResults.length > 0) {
-        contextString = searchResults
-          .map((r: any) => `Title: ${r.title}\nContent: ${r.content}`)
-          .join('\n\n');
-        
-        setChatLog(prev => [
-          ...prev, 
-          { 
-            role: 'system', 
-            text: `[VECTOR DB] Retrieved ${searchResults.length} relevant documentation nodes. Injecting context...`, 
-            timestamp: getTimestamp() 
-          }
-        ]);
-      } else {
-        setChatLog(prev => [
-          ...prev, 
-          { 
-            role: 'system', 
-            text: '[VECTOR DB] Zero context matches in database. Prompting without additional scope...', 
-            timestamp: getTimestamp() 
-          }
-        ]);
-      }
-
+      // The heavy lifting (vector embedding, DB search, and context injection)
+      // is now handled entirely securely by the ApexKit `before_ai_run` hook on the backend!
       const aiResponse = await client.ai.run('copilot', {
-        prompt: promptText,
-        context: contextString
+        prompt: promptText
       });
 
       const result = aiResponse.result || 'No response returned from inference engine.';
