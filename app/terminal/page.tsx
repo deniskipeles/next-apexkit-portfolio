@@ -5,10 +5,18 @@ import { Send, Loader2, BrainCircuit, Terminal as TerminalIcon, Trash2 } from 'l
 import { cn } from '@/lib/utils';
 import { getApexClient } from '@/lib/apex';
 
-// --- CUSTOM TERMINAL MARKDOWN PARSER ---
-// Safely escapes HTML to prevent XSS injection from LLM output
+// Decodes entities that may already be present in the raw LLM string before
+// we re-escape for safe rendering — prevents "&#039;" / "&gt;" showing literally.
+const decodeEntities = (str: string) =>
+  str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'");
+
 const escapeHtml = (unsafe: string) => {
-  return unsafe
+  return decodeEntities(unsafe)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -16,7 +24,6 @@ const escapeHtml = (unsafe: string) => {
     .replace(/'/g, "&#039;");
 };
 
-// Applies inline coloring for Bold, Italic, Links, and Inline Code
 function formatTerminalLine(str: string) {
   let safeStr = escapeHtml(str);
   return safeStr
@@ -26,98 +33,150 @@ function formatTerminalLine(str: string) {
     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 underline-offset-2">↗ $1</a>');
 }
 
+const GLOW = 'shadow-[0_0_12px_rgba(50,255,132,0.10)]';
+
 const TerminalMarkdown = ({ text }: { text: string }) => {
   const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
   let inCodeBlock = false;
   let codeLang = '';
+  let tableBuffer: string[] = [];
 
-  return (
-    <div className="flex flex-col w-full text-brand">
-      {lines.map((line, i) => {
-        const fenceMatch = line.trim().match(/^```(\w*)/);
-        if (fenceMatch) {
-          if (!inCodeBlock) {
-            codeLang = fenceMatch[1] || 'text';
-            inCodeBlock = true;
-            return (
-              <div key={i} className="mt-2 flex items-center justify-between bg-neutral-900 border border-neutral-700 border-b-0 rounded-t px-3 py-1">
-                <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">{codeLang}</span>
-                <span className="text-neutral-600 select-none text-[10px]">●●●</span>
-              </div>
-            );
-          }
-          inCodeBlock = false;
-          return <div key={i} className="bg-neutral-900/60 border border-neutral-700 border-t-0 rounded-b h-2 mb-2" />;
-        }
+  const flushTable = (keyBase: number) => {
+    if (tableBuffer.length === 0) return;
+    const rows = tableBuffer
+      .filter(r => !/^\s*\|?[\s:|-]+\|?\s*$/.test(r)) // drop the |---|---| separator row
+      .map(r => r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim()));
 
-        if (inCodeBlock) {
-          return (
-            <div key={i} className="bg-neutral-900/60 border-x border-neutral-700 px-3 text-amber-300 whitespace-pre overflow-x-auto">
-              {escapeHtml(line) || '\u00A0'}
-            </div>
-          );
-        }
+    if (rows.length > 0) {
+      const [header, ...body] = rows;
+      elements.push(
+        <div key={`table-${keyBase}`} className={cn("my-2 overflow-x-auto border border-neutral-700 rounded", GLOW)}>
+          <table className="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr className="bg-neutral-900">
+                {header.map((h, hi) => (
+                  <th key={hi} className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-sky-300 font-bold border-b border-neutral-700 whitespace-nowrap">
+                    <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(h) }} />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {body.map((row, ri) => (
+                <tr key={ri} className={ri % 2 === 0 ? 'bg-black' : 'bg-neutral-900/40'}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="px-3 py-1.5 border-b border-neutral-800 text-brand whitespace-nowrap">
+                      <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(cell) }} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    tableBuffer = [];
+  };
 
-        const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
-        if (headingMatch) {
-          const hashes = headingMatch[1];
-          const content = headingMatch[2];
-          return (
-            <div key={i} className="text-sky-300 font-bold mt-4 mb-1 uppercase tracking-wider border-b border-sky-300/20 pb-1">
-              <span className="opacity-50 mr-2">{hashes}</span>
-              <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(content) }} />
-            </div>
-          );
-        }
+  lines.forEach((line, i) => {
+    // Buffer pipe-delimited rows until the table block ends
+    if (!inCodeBlock && /^\s*\|/.test(line.trim())) {
+      tableBuffer.push(line);
+      return;
+    }
+    if (tableBuffer.length > 0) flushTable(i);
 
-        const quoteMatch = line.match(/^\s*>\s?(.*)/);
-        if (quoteMatch) {
-          return (
-            <div key={i} className="border-l-2 border-neutral-600 pl-3 text-neutral-400 italic mt-1">
-              <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(quoteMatch[1]) }} />
-            </div>
-          );
-        }
-
-        const numListMatch = line.match(/^(\s*)(\d+\.)\s+(.*)/);
-        if (numListMatch) {
-          const indent = numListMatch[1].length;
-          const bullet = numListMatch[2];
-          const content = numListMatch[3];
-          return (
-            <div key={i} className="flex mt-1" style={{ marginLeft: indent * 8 }}>
-              <span className="text-sky-300 font-bold mr-2 whitespace-pre shrink-0">{bullet}</span>
-              <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(content) }} />
-            </div>
-          );
-        }
-
-        const listMatch = line.match(/^(\s*)([-*])\s+(.*)/);
-        if (listMatch) {
-          const indent = listMatch[1].length;
-          const content = listMatch[3];
-          return (
-            <div key={i} className="flex mt-1" style={{ marginLeft: indent * 8 }}>
-              <span className="text-[#32ff84] font-bold mr-2 shrink-0">{indent > 0 ? '◦' : '▸'}</span>
-              <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(content) }} />
-            </div>
-          );
-        }
-
-        if (line.trim().match(/^[-*_]{3,}$/)) {
-          return <div key={i} className="border-t border-neutral-700 my-3" />;
-        }
-
-        if (line.trim() === '') {
-          return <div key={i} className="h-4"></div>;
-        }
-
-        return (
-          <div key={i} dangerouslySetInnerHTML={{ __html: formatTerminalLine(line) }} className="mt-1" />
+    const fenceMatch = line.trim().match(/^```(\w*)/);
+    if (fenceMatch) {
+      if (!inCodeBlock) {
+        codeLang = fenceMatch[1] || 'text';
+        inCodeBlock = true;
+        elements.push(
+          <div key={i} className={cn("mt-2 flex items-center justify-between bg-neutral-900 border border-neutral-700 border-b-0 rounded-t px-3 py-1", GLOW)}>
+            <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">{codeLang}</span>
+            <span className="text-neutral-600 select-none text-[10px]">●●●</span>
+          </div>
         );
-      })}
-    </div>
-  );
+      } else {
+        inCodeBlock = false;
+        elements.push(<div key={i} className={cn("bg-neutral-900/60 border border-neutral-700 border-t-0 rounded-b h-2 mb-2", GLOW)} />);
+      }
+      return;
+    }
+
+    if (inCodeBlock) {
+      elements.push(
+        <div key={i} className={cn("bg-neutral-900/60 border-x border-neutral-700 px-3 text-amber-300 whitespace-pre overflow-x-auto", GLOW)}>
+          {escapeHtml(line) || '\u00A0'}
+        </div>
+      );
+      return;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
+    if (headingMatch) {
+      elements.push(
+        <div key={i} className="text-sky-300 font-bold mt-4 mb-1 uppercase tracking-wider border-b border-sky-300/20 pb-1">
+          <span className="opacity-50 mr-2">{headingMatch[1]}</span>
+          <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(headingMatch[2]) }} />
+        </div>
+      );
+      return;
+    }
+
+    const quoteMatch = line.match(/^\s*>\s?(.*)/);
+    if (quoteMatch) {
+      elements.push(
+        <div key={i} className="border-l-2 border-neutral-600 pl-3 text-neutral-400 italic mt-1">
+          <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(quoteMatch[1]) }} />
+        </div>
+      );
+      return;
+    }
+
+    const numListMatch = line.match(/^(\s*)(\d+\.)\s+(.*)/);
+    if (numListMatch) {
+      elements.push(
+        <div key={i} className="flex mt-1" style={{ marginLeft: numListMatch[1].length * 8 }}>
+          <span className="text-sky-300 font-bold mr-2 whitespace-pre shrink-0">{numListMatch[2]}</span>
+          <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(numListMatch[3]) }} />
+        </div>
+      );
+      return;
+    }
+
+    const listMatch = line.match(/^(\s*)([-*])\s+(.*)/);
+    if (listMatch) {
+      const indent = listMatch[1].length;
+      elements.push(
+        <div key={i} className="flex mt-1" style={{ marginLeft: indent * 8 }}>
+          <span className="text-[#32ff84] font-bold mr-2 shrink-0">{indent > 0 ? '◦' : '▸'}</span>
+          <span dangerouslySetInnerHTML={{ __html: formatTerminalLine(listMatch[3]) }} />
+        </div>
+      );
+      return;
+    }
+
+    if (line.trim().match(/^[-*_]{3,}$/)) {
+      elements.push(<div key={i} className="border-t border-neutral-700 my-3" />);
+      return;
+    }
+
+    if (line.trim() === '') {
+      elements.push(<div key={i} className="h-4" />);
+      return;
+    }
+
+    elements.push(
+      <div key={i} dangerouslySetInnerHTML={{ __html: formatTerminalLine(line) }} className="mt-1" />
+    );
+  });
+
+  flushTable(lines.length); // catch a table that runs to the end of the message
+
+  return <div className="flex flex-col w-full text-brand">{elements}</div>;
 };
 // ----------------------------------------
 
