@@ -6,8 +6,8 @@ import {
   HomeHeroData, HOME_HERO
 } from './data';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kipeles-vs--5000.hf.space';
-const TENANT_ID = 'portfolio';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
+const TENANT_ID = process.env.TENANT_ID || 'portfolio';
 
 // Initialize the SDK lazy-loaded
 let apexClient: any = null;
