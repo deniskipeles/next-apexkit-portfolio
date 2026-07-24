@@ -7,7 +7,7 @@ import {
 } from './data';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
-const TENANT_ID = process.env.TENANT_ID || 'portfolio';
+const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || 'portfolio';
 
 // Initialize the SDK lazy-loaded
 let apexClient: any = null;
