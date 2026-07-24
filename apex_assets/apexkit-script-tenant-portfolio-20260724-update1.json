@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "name": "copilot-rag-injector",
+    "trigger_type": "before_ai_run",
+    "target_collection": null,
+    "code": "export default async function (e) {\n    // 1. Only intercept requests targeting the 'copilot' action\n    if (e.data.slug !== 'copilot') {\n        return e.data; // Let other actions pass through untouched\n    }\n\n    const userPrompt = e?.data?.vars?.prompt;\n    if (!userPrompt) {\n        return e.data;\n    }\n\n    console.log(\"Intercepted Copilot request. Running vector search for: \" + userPrompt);\n\n    try {\n        // 2. Perform a semantic vector search on the 'articles' collection\n        // $db.records.searchVector returns an array of tuples: [[record, score], [record, score], ...]\n        const limit = 3;\n        const vec = await $ai.embed(userPrompt);\n        const searchResults = await $db.records.searchVector(\"articles\", \"content\", vec, limit);\n\n        let contextString = '';\n\n        if (searchResults && searchResults.length > 0) {\n            console.log(`Found ${searchResults.length} context documents. Injecting...`);\n\n            // 3. Extract the record object from item[0] of each returned [record, distance] pair\n            contextString = searchResults.map(item => {\n                const record = item[0];\n                const data = record?.data || record || {};\n                return `Title: ${data.title || 'Untitled'}\\nContent: ${data.content || ''}`;\n            }).join('\\n\\n---\\n\\n');\n        } else {\n            console.log(\"No context documents found in vector space.\");\n            contextString = \"No relevant official documentation found in the database.\";\n        }\n\n        // 4. Inject the formatted context into the payload bound for Gemini/Groq\n        e.data.vars.context = contextString;\n\n    } catch (err) {\n        console.log(\"Vector search failed: \" + err);\n        e.data.vars.context = \"Error retrieving context from database.\";\n    }\n\n    // 5. Return the modified payload back to the ApexKit inference engine\n    return e.data;\n}",
+    "active": true,
+    "visibility": "private"
+  },
+  {
+    "id": 9,
+    "name": "article-auto-slug",
+    "trigger_type": "before_create_record",
+    "target_collection": "articles",
+    "code": "export default async function (e) {\n    const data = e.record?.data || e.data;\n    if (data && data.title && (!data.slug || data.slug.trim() === '')) {\n        data.slug = $util.slugify(data.title);\n    }\n    return data;\n}",
+    "active": true,
+    "visibility": "private"
+  }
+]

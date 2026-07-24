@@ -5,31 +5,28 @@ import { Send, Loader2, BrainCircuit, Terminal as TerminalIcon, Trash2 } from 'l
 import { cn } from '@/lib/utils';
 import { getApexClient } from '@/lib/apex';
 
-// Decodes entities that may already be present in the raw LLM string before
-// we re-escape for safe rendering — prevents "&#039;" / "&gt;" showing literally.
-const decodeEntities = (str: string) =>
-  str
-    .replace(/&amp;/g, '&')
+// Thorough HTML Entity Decoder to strip out double-encoded entities like &quot;
+const decodeEntities = (str: string) => {
+  if (!str) return '';
+  return str
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'");
-
-const escapeHtml = (unsafe: string) => {
-  return decodeEntities(unsafe)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/&amp;/g, '&');
 };
 
 function formatTerminalLine(str: string) {
-  let safeStr = escapeHtml(str);
+  let cleanStr = decodeEntities(str);
+  let safeStr = cleanStr
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
   return safeStr
     .replace(/\*\*(.*?)\*\*/g, '<span class="text-white font-black">$1</span>')
     .replace(/\*(.*?)\*/g, '<span class="text-neutral-400 italic">$1</span>')
-    .replace(/`([^`]+)`/g, '<span class="text-fuchsia-300 bg-fuchsia-400/10 border border-fuchsia-400/30 px-1.5 py-0.5 rounded">$1</span>')
+    .replace(/`([^`]+)`/g, '<span class="text-fuchsia-300 bg-fuchsia-400/10 border border-fuchsia-400/30 px-1.5 py-0.5 rounded font-mono">$1</span>')
     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 underline-offset-2">↗ $1</a>');
 }
 
@@ -45,14 +42,14 @@ const TerminalMarkdown = ({ text }: { text: string }) => {
   const flushTable = (keyBase: number) => {
     if (tableBuffer.length === 0) return;
     const rows = tableBuffer
-      .filter(r => !/^\s*\|?[\s:|-]+\|?\s*$/.test(r)) // drop the |---|---| separator row
+      .filter(r => !/^\s*\|?[\s:|-]+\|?\s*$/.test(r))
       .map(r => r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim()));
 
     if (rows.length > 0) {
       const [header, ...body] = rows;
       elements.push(
         <div key={`table-${keyBase}`} className={cn("my-2 overflow-x-auto border border-neutral-700 rounded", GLOW)}>
-          <table className="w-full text-left border-collapse text-xs sm:text-sm">
+          <table className="w-full text-left border-collapse text-xs sm:text-sm font-mono">
             <thead>
               <tr className="bg-neutral-900">
                 {header.map((h, hi) => (
@@ -81,7 +78,6 @@ const TerminalMarkdown = ({ text }: { text: string }) => {
   };
 
   lines.forEach((line, i) => {
-    // Buffer pipe-delimited rows until the table block ends
     if (!inCodeBlock && /^\s*\|/.test(line.trim())) {
       tableBuffer.push(line);
       return;
@@ -95,7 +91,7 @@ const TerminalMarkdown = ({ text }: { text: string }) => {
         inCodeBlock = true;
         elements.push(
           <div key={i} className={cn("mt-2 flex items-center justify-between bg-neutral-900 border border-neutral-700 border-b-0 rounded-t px-3 py-1", GLOW)}>
-            <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">{codeLang}</span>
+            <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">{codeLang}</span>
             <span className="text-neutral-600 select-none text-[10px]">●●●</span>
           </div>
         );
@@ -107,9 +103,10 @@ const TerminalMarkdown = ({ text }: { text: string }) => {
     }
 
     if (inCodeBlock) {
+      // React automatically escapes strings inside JSX children safely without double-encoding &quot;
       elements.push(
-        <div key={i} className={cn("bg-neutral-900/60 border-x border-neutral-700 px-3 text-amber-300 whitespace-pre overflow-x-auto", GLOW)}>
-          {escapeHtml(line) || '\u00A0'}
+        <div key={i} className={cn("bg-neutral-900/60 border-x border-neutral-700 px-3 text-amber-300 whitespace-pre overflow-x-auto font-mono text-xs sm:text-sm", GLOW)}>
+          {decodeEntities(line) || '\u00A0'}
         </div>
       );
       return;
@@ -174,11 +171,10 @@ const TerminalMarkdown = ({ text }: { text: string }) => {
     );
   });
 
-  flushTable(lines.length); // catch a table that runs to the end of the message
+  flushTable(lines.length);
 
   return <div className="flex flex-col w-full text-brand">{elements}</div>;
 };
-// ----------------------------------------
 
 interface ChatLine {
   role: 'user' | 'system' | 'copilot' | 'error';
@@ -193,7 +189,6 @@ export default function TerminalPage() {
   const terminalEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    // Initial welcome transmission
     setChatLog([
       {
         role: 'system',
@@ -244,8 +239,6 @@ export default function TerminalPage() {
       const client = getApexClient();
       if (!client) throw new Error('ApexKit client failed to initialize.');
 
-      // The heavy lifting (vector embedding, DB search, and context injection)
-      // is now handled entirely securely by the ApexKit `before_ai_run` hook on the backend!
       const aiResponse = await client.ai.run('copilot', {
         prompt: promptText
       });
@@ -270,7 +263,6 @@ export default function TerminalPage() {
 
   return (
     <section className="mb-12 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 md:px-0">
-      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 bg-brand border-[3px] border-black flex-shrink-0 shadow-[2px_2px_0px_0px_#000]" />
@@ -286,7 +278,6 @@ export default function TerminalPage() {
       </div>
 
       <div className="border-[3px] border-black bg-white shadow-[8px_8px_0px_0px_#000000] rounded overflow-hidden flex flex-col h-[70vh] min-h-[500px]">
-        
         <div className="border-b-[3px] border-black bg-neutral-100 p-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <TerminalIcon className="w-4 h-4 text-black shrink-0" />
@@ -325,10 +316,8 @@ export default function TerminalPage() {
                       isErr ? 'text-red-400 font-bold' : 'text-brand'
                     )}
                   >
-                    {/* Timestamp: Rendered on its own line/row on mobile */}
                     <span className="text-[10px] opacity-40 select-none shrink-0 sm:mt-0.5">[{line.timestamp}]</span>
                     
-                    {/* Message Content: Renders on its own row on mobile */}
                     <div className="w-full sm:flex-1 min-w-0 overflow-x-auto">
                       {isUser && <span className="text-[#32ff84] select-none mr-1.5">visitor@copilot:~$</span>}
                       {line.role === 'copilot' ? (
@@ -356,7 +345,6 @@ export default function TerminalPage() {
             onSubmit={handleCommandSubmit} 
             className="flex items-center gap-2 border-t border-neutral-900 pt-3.5 mt-3.5 shrink-0"
           >
-            {/* Shortened target for smaller screens to save input layout space */}
             <span className="text-white font-black select-none hidden sm:inline">visitor@copilot:~$</span>
             <span className="text-white font-black select-none inline sm:hidden">~$</span>
             
@@ -381,7 +369,6 @@ export default function TerminalPage() {
               <Send className="w-4 h-4" />
             </button>
           </form>
-
         </div>
       </div>
     </section>
