@@ -5,7 +5,6 @@ import { Send, Loader2, BrainCircuit, Terminal as TerminalIcon, Trash2 } from 'l
 import { cn } from '@/lib/utils';
 import { getApexClient } from '@/lib/apex';
 
-// Thorough HTML Entity Decoder to strip out double-encoded entities like &quot;
 const decodeEntities = (str: string) => {
   if (!str) return '';
   return str
@@ -103,7 +102,6 @@ const TerminalMarkdown = ({ text }: { text: string }) => {
     }
 
     if (inCodeBlock) {
-      // React automatically escapes strings inside JSX children safely without double-encoding &quot;
       elements.push(
         <div key={i} className={cn("bg-neutral-900/60 border-x border-neutral-700 px-3 text-amber-300 whitespace-pre overflow-x-auto font-mono text-xs sm:text-sm", GLOW)}>
           {decodeEntities(line) || '\u00A0'}
@@ -197,12 +195,12 @@ export default function TerminalPage() {
       },
       {
         role: 'system',
-        text: 'RAG ARCHITECTURE STATUS: ONLINE / EMBEDDINGS MAP SYNCED.',
+        text: 'RATE LIMIT POLICY: 10 REQS / 10 MIN (GUEST), 15 REQS / 10 MIN (AUTHENTICATED).',
         timestamp: getTimestamp()
       },
       {
         role: 'copilot',
-        text: 'Greetings. I am your specialized Systems & Frontend Copilot. I have real-time semantic access to all published documentation regarding swalang, the custom Zig compiler, and the ApexKit backend fabrics. Ask me anything about my architecture.',
+        text: 'Greetings. I am your specialized Systems & Frontend Copilot. Ask me anything about swalang, the custom Zig compiler, or ApexKit architecture.',
         timestamp: getTimestamp()
       }
     ]);
@@ -239,8 +237,25 @@ export default function TerminalPage() {
       const client = getApexClient();
       if (!client) throw new Error('ApexKit client failed to initialize.');
 
+      // 1. Sync session token if user is logged in
+      const token = typeof window !== 'undefined' ? localStorage.getItem('apex_token') : null;
+      if (token) {
+        client.setToken(token);
+      }
+
+      // 2. Generate or retrieve persistent anonymous session ID for rate limiting
+      let sessionId = typeof window !== 'undefined' ? localStorage.getItem('copilot_session_id') : null;
+      if (!sessionId) {
+        sessionId = 'session_' + Math.random().toString(36).substring(2, 15);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('copilot_session_id', sessionId);
+        }
+      }
+
+      // 3. Run AI action passing prompt & session ID
       const aiResponse = await client.ai.run('copilot', {
-        prompt: promptText
+        prompt: promptText,
+        sessionId: sessionId
       });
 
       const result = aiResponse.result || 'No response returned from inference engine.';
@@ -254,7 +269,7 @@ export default function TerminalPage() {
       console.error('[Copilot] Inference Error:', err);
       setChatLog(prev => [
         ...prev,
-        { role: 'error', text: `CRITICAL PIPELINE FAILURE: ${err.message || 'Network unreachable'}`, timestamp: getTimestamp() }
+        { role: 'error', text: `PIPELINE EXCEPTION: ${err.message || 'Network unreachable'}`, timestamp: getTimestamp() }
       ]);
     } finally {
       setIsProcessing(false);
@@ -354,7 +369,7 @@ export default function TerminalPage() {
               onChange={e => setCommandInput(e.target.value)}
               disabled={isProcessing}
               placeholder="Ask anything about the compilers, swalang, or apexkit (e.g. type 'clear')..."
-              className="flex-1 bg-transparent border-none text-white focus:outline-none placeholder-neutral-700 font-mono text-xs sm:text-sm caret-brand disabled:opacity-50"
+              className="flex-1 bg-transparent border-none text-[#32ff84] focus:outline-none placeholder-neutral-700 font-mono text-xs sm:text-sm caret-brand disabled:opacity-50"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"

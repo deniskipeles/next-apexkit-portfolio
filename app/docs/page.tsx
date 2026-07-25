@@ -1,16 +1,22 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Search, Loader2, BookOpen, ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { getArticles, Article } from '@/lib/apex';
 
-export default function DocsPage() {
+function DocsPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Read current page and search query directly from URL parameters
+  const urlPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  const urlQuery = searchParams.get('q') || '';
+
   const [articles, setArticles] = useState<Article[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput] = useState(urlQuery);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -23,6 +29,11 @@ export default function DocsPage() {
     }
   }, []);
 
+  // Synchronize local input state whenever the URL query parameter changes
+  useEffect(() => {
+    setSearchInput(urlQuery);
+  }, [urlQuery]);
+
   const loadDocs = useCallback(async (p: number, q: string) => {
     setIsLoading(true);
     const { items, total: totalCount } = await getArticles(p, perPage, q);
@@ -32,13 +43,30 @@ export default function DocsPage() {
   }, [perPage]);
 
   useEffect(() => {
-    loadDocs(page, searchQuery);
-  }, [page, searchQuery, loadDocs]);
+    loadDocs(urlPage, urlQuery);
+  }, [urlPage, urlQuery, loadDocs]);
+
+  // Helper to push state changes to URL query parameters
+  const updateUrl = (newPage: number, newQuery: string) => {
+    const params = new URLSearchParams();
+    if (newPage > 1) {
+      params.set('page', newPage.toString());
+    }
+    if (newQuery.trim()) {
+      params.set('q', newQuery.trim());
+    }
+
+    const queryString = params.toString();
+    router.push(`/docs${queryString ? `?${queryString}` : ''}`);
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setPage(1);
-    setSearchQuery(searchInput);
+    updateUrl(1, searchInput);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    updateUrl(newPage, urlQuery);
   };
 
   const totalPages = Math.ceil(total / perPage);
@@ -92,7 +120,7 @@ export default function DocsPage() {
           <BookOpen className="w-12 h-12 mx-auto mb-4 text-neutral-400" />
           <h4 className="font-display font-black text-xl uppercase mb-2">NO DOCUMENTS FOUND</h4>
           <p className="font-mono text-xs text-neutral-500 uppercase">
-            No articles match your search query &quot;{searchQuery}&quot;.
+            No articles match your search query &quot;{urlQuery}&quot;.
           </p>
         </div>
       ) : (
@@ -150,20 +178,20 @@ export default function DocsPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between border-[3px] border-black bg-white p-4 shadow-[4px_4px_0px_0px_#000000] font-mono text-xs font-bold uppercase">
               <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={urlPage <= 1}
+                onClick={() => handlePageChange(urlPage - 1)}
                 className="px-3 py-1.5 bg-white border-2 border-black flex items-center gap-1 hover:bg-[#32ff84] disabled:opacity-40 disabled:hover:bg-white shadow-[2px_2px_0px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all"
               >
                 <ChevronLeft className="w-4 h-4" /> PREV
               </button>
 
               <span>
-                PAGE {page} OF {totalPages} ({total} TOTAL DOCS)
+                PAGE {urlPage} OF {totalPages} ({total} TOTAL DOCS)
               </span>
 
               <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
+                disabled={urlPage >= totalPages}
+                onClick={() => handlePageChange(urlPage + 1)}
                 className="px-3 py-1.5 bg-white border-2 border-black flex items-center gap-1 hover:bg-[#32ff84] disabled:opacity-40 disabled:hover:bg-white shadow-[2px_2px_0px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all"
               >
                 NEXT <ChevronRight className="w-4 h-4" />
@@ -173,5 +201,20 @@ export default function DocsPage() {
         </>
       )}
     </section>
+  );
+}
+
+export default function DocsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-[30vh] flex-col items-center justify-center gap-4 text-center font-mono">
+          <Loader2 className="w-8 h-8 animate-spin text-[#32ff84]" />
+          <p className="text-xs uppercase font-black tracking-widest text-black">PARSING DOCUMENTATION ROUTE...</p>
+        </div>
+      }
+    >
+      <DocsPageContent />
+    </Suspense>
   );
 }

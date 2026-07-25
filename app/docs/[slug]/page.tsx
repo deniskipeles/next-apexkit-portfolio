@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, BookOpen, Clock, Calendar, Edit } from 'lucide-react';
 import { getArticleBySlug, Article } from '@/lib/apex';
@@ -9,6 +9,7 @@ import { MarkdownRenderer } from '@/components/MarkdownEditor';
 
 export default function ArticleDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
 
   const [article, setArticle] = useState<Article | null>(null);
@@ -48,12 +49,12 @@ export default function ArticleDetailPage() {
         <p className="text-xs font-bold text-neutral-500 uppercase mb-6">
           The requested document &quot;{slug}&quot; does not exist in the ledger.
         </p>
-        <Link
-          href="/docs"
+        <button
+          onClick={() => router.back()}
           className="inline-flex items-center gap-2 px-6 py-3 bg-black text-[#32ff84] border-2 border-black font-black text-xs uppercase shadow-[3px_3px_0px_0px_#000000] hover:bg-[#32ff84] hover:text-black transition-all"
         >
           <ArrowLeft className="w-4 h-4" /> RETURN TO DOCS
-        </Link>
+        </button>
       </div>
     );
   }
@@ -61,12 +62,12 @@ export default function ArticleDetailPage() {
   return (
     <article className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 mb-12">
       <div className="flex items-center justify-between mb-6">
-        <Link
-          href="/docs"
+        <button
+          onClick={() => router.back()}
           className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black font-mono font-bold text-xs uppercase shadow-[2px_2px_0px_0px_#000000] hover:bg-[#32ff84] transition-all"
         >
           <ArrowLeft className="w-4 h-4" /> BACK TO ALL DOCS
-        </Link>
+        </button>
 
         {isAuthenticated && (
           <Link
@@ -98,7 +99,6 @@ export default function ArticleDetailPage() {
           {article.summary}
         </div>
 
-        {/* Custom Markdown Renderer with Syntax Highlighting & Neobrutalist Styling */}
         <MarkdownRenderer content={article.content} />
 
         {article.tags && article.tags.length > 0 && (

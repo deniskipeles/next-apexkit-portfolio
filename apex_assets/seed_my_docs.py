@@ -215,3 +215,6 @@ if __name__ == "__main__":
 #   --tenant portfolio \
 #   --key tnt_portfolio_sk_prod_d3d9061957ba677a4937a067c28c662c048060e044b3c7f87b73fc25a3e94_674c \
 #   --delay 1.0
+
+# OR PROXY
+# python3 next-apexkit-portfolio/apex_assets/seed_my_docs.py   --dir apex-kit/docs   --url http://127.0.0.1:5000   --tenant portfolio   --key tnt_portfolio_sk_prod_d3d9061957ba677a4937a067c28c662c048060e044b3c7f87b73fc25a3e94_674c   --delay 1.0   --proxy socks5://169.155.50.87:1080
